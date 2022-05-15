@@ -42,6 +42,8 @@ If the script detects differing addresses and no token in the address, it will m
 
 If the last 2 transfers have differing addresses but different token IDs, the address is marked for double checking.
 
+Current Success rate: 78%
+
 ##### Further filtering methods will be implemented with community feedback
 
 ## MoeSham3a
