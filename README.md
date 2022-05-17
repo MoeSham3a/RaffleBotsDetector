@@ -45,5 +45,5 @@ If the last 2 transfers have differing addresses but different token IDs, the ad
 Current Success rate: 78%
 
 ##### Further filtering methods will be implemented with community feedback
-
+### For The Cultur3
 ## MoeSham3a
