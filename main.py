@@ -19,11 +19,11 @@ response = requests.get(doc_link, headers=headers)
 data = response.json()
 
 # Troubleshoot data #
-pprint.pp(data)
+# pprint.pp(data)
 
 # Fetch Sheet Name #
 
-print(f"data key:{data.keys()} of type: {type(data.keys())}")
+# print(f"data key:{data.keys()} of type: {type(data.keys())}")
 sheet_name = list(data.keys())[0]
 
 # Fetch Number of Entries #
@@ -65,12 +65,34 @@ http_header = {
 
 # Create Base URL Components #
 
+base_trx_url = "https://etherscan.io/tx/"
 base_ether_url = "https://etherscan.io/token/"
 base_api_url_start = "https://api.etherscan.io/api?module=account&action=tokennfttx&contractaddress="
 base_api_url_finish = f"&page=1&offset=100&startblock=14575110&endblock=27025780&sort=asc&apikey={etherscan_api}"
 
 required_token_address = input("Enter the NFT token address: ")
 api_url_with_token_address = f"{base_api_url_start}{required_token_address}"
+
+
+def Fetch_Trx_Type(hash: str):
+    trx_doc = requests.get(f"{base_trx_url}{hash}", headers=http_header)
+    trx_soup = BeautifulSoup(trx_doc.text, 'html.parser')
+    # pprint.pp(trx_soup)
+    trx_element = trx_soup.select("#wrapperContent")
+    trx_type = trx_element[0].contents[0].find_all('span')[1].text.split()[0].lower()
+    return trx_type
+
+
+def modify_sheet(status_message: str):
+    modify = requests.put(
+        f"{doc_link}{data[sheet_name][i]['id']}",
+        json={f"{sheet_name}": {
+            f"{first_column_key}": data[sheet_name][i][f"{first_column_key}"],
+            f"{second_column_key}": data[sheet_name][i][f"{second_column_key}"],
+            f"{third_column_key}": f"{status_message}"
+        }}, headers=headers)
+    print(f"Status code: {modify.status_code}\nContent: {modify.content}\nText: {modify.text}")
+
 
 for i in range(entries_number):
     if required_token_address is not None:
@@ -110,41 +132,41 @@ for i in range(entries_number):
             token_trx = requests.get(f"{api_url_with_token_address}&address={address_list[i]}{base_api_url_finish}")
             # pprint.pp(token_trx.json())
             token_trx_data = token_trx.json()
-            outgoing_token_id = token_trx_data['result'][-1]['tokenID']
-            incoming_token_id = token_trx_data['result'][-2]['tokenID']
-            # print(f"Incoming tokenID = {incoming_token_id} \nOutgoing tokenID = {outgoing_token_id}")
-            outgoing_address = token_trx_data['result'][-1]['to']
-            incoming_address = token_trx_data['result'][-2]['from']
-            print(f"Token {incoming_token_id} from {incoming_address} SENT TO {outgoing_address} {outgoing_token_id}")
+            # fetch last token action #
+            last_tokenID_used = token_trx_data['result'][-1]['tokenID']
+            last_token_hash = token_trx_data['result'][-1]['hash']
 
-            if incoming_address != outgoing_address and incoming_token_id == outgoing_token_id:
-                print("Bot Confirmed")
-                # print(f"twitter handle = {data[sheet_name][i].keys()}")
-
-                modify = requests.put(
-                    f"https://api.sheety.co/a9a78efd5ca9e2fcf4ed22e08262cfd5/cpgXMv3BotDetection/allowlist/{data[sheet_name][i]['id']}",
-                    json={f"{sheet_name}": {
-                        f"{first_column_key}": data[sheet_name][i][f"{first_column_key}"],
-                        f"{second_column_key}": data[sheet_name][i][f"{second_column_key}"],
-                        f"{third_column_key}": "XXX"
-                    }}, headers=headers)
-                print(f"Status code: {modify.status_code}\nContent: {modify.content}\nText: {modify.text}")
-            elif incoming_address != outgoing_address and incoming_token_id != outgoing_token_id:
-                modify = requests.put(
-                    f"https://api.sheety.co/a9a78efd5ca9e2fcf4ed22e08262cfd5/cpgXMv3BotDetection/allowlist/{data[sheet_name][i]['id']}",
-                    json={f"{sheet_name}": {
-                        f"{first_column_key}": data[sheet_name][i][f"{first_column_key}"],
-                        f"{second_column_key}": data[sheet_name][i][f"{second_column_key}"],
-                        f"{third_column_key}": "Double Check"
-                    }}, headers=headers)
-                print(f"Status code: {modify.status_code}\nContent: {modify.content}\nText: {modify.text}")
-
+            if Fetch_Trx_Type(last_token_hash) == "transfer":
+                # Check incoming token trx
+                for trx in token_trx_data['result']:
+                    if trx['tokenID'] == last_tokenID_used and trx['to'] == token_trx_data['result'][-1]["from"]:
+                        trx_hash = trx['hash']
+                        Fetch_Trx_Type(trx_hash)
+                        print(f"Transaction fetched is: {Fetch_Trx_Type(trx_hash)}")
+                        if Fetch_Trx_Type(trx_hash) == "sale" or Fetch_Trx_Type(trx_hash) == 'mint':
+                            modify_sheet("SAFE: Purchased or minted")
+                        elif Fetch_Trx_Type(trx_hash) == 'transfer':
+                            # Check for wash transfer from originating address #
+                            modify_sheet("Check origin address for wash transfer")
+                        else:
+                            modify_sheet("DOUBLE CHECK")
+            elif Fetch_Trx_Type(last_token_hash) == "sale" or Fetch_Trx_Type(last_token_hash) == 'mint':
+                # Mark as safe #
+                modify_sheet("SAFE: Purchased or Minted")
             else:
-                print("Safe Address")
-
-        # Second Scenario: Token found
-        # Check if address is an outgoing one (vault) of existing candidates
-        # Check if in is from a bot account
-
+                modify_sheet("Double Check")
         else:
             print("Scenario 2: TOKEN FOUND\ncheck OUTGOING ADDRESS IS VAULT OR NOT")
+            token_trx = requests.get(f"{api_url_with_token_address}&address={address_list[i]}{base_api_url_finish}")
+            # pprint.pp(token_trx.json())
+            token_trx_data = token_trx.json()
+
+            # fetch last token action #
+            last_tokenID_used = token_trx_data['result'][-1]['tokenID']
+            last_token_hash = token_trx_data['result'][-1]['hash']
+            if Fetch_Trx_Type(last_token_hash) == "sale" or Fetch_Trx_Type(last_token_hash) == "mint":
+                modify_sheet("SAFE: Purchased or Minted")
+            elif Fetch_Trx_Type(last_token_hash) == "transfer":
+                modify_sheet("May be Safe but Check for wash transfer")
+            else:
+                modify_sheet("Double Check")
