@@ -94,7 +94,35 @@ def modify_sheet(status_message: str):
     print(f"Status code: {modify.status_code}\nContent: {modify.content}\nText: {modify.text}")
 
 
-for i in range(entries_number):
+def wash_transfer_check(origin_address:str, last_tokenID:str):
+    origin_address_trxs = requests.get(
+        f"{api_url_with_token_address}&address={origin_address}{base_api_url_finish}").json()
+    # check json data #
+    # pprint.pp(origin_address_trxs)
+    entry_token_trx_list = []
+    for t in origin_address_trxs['result']:
+        if t['tokenID'] == last_tokenID:
+            entry_token_trx_list.append(t)
+    # Check entries logged #
+    # pprint.pp(entry_token_trx_list)
+    if len(entry_token_trx_list) == 2:
+        # print(entry_token_trx_list[0])
+        if Fetch_Trx_Type(entry_token_trx_list[0]['hash']) == "sale:" or Fetch_Trx_Type(
+                entry_token_trx_list[0]['hash']) == 'mint' or Fetch_Trx_Type(
+                entry_token_trx_list[0]['hash']) == 'bid':
+            modify_sheet("SAFE: origin Purchased or Minted")
+        elif Fetch_Trx_Type(entry_token_trx_list[0]['hash']) == "transfer":
+            modify_sheet("90% BOT: transferred more than twice -- Check further")
+        else:
+            modify_sheet("Double Check trx type")
+            print(f"transaction type: {Fetch_Trx_Type(entry_token_trx_list[0]['hash'])} for "
+                  f"hash:{entry_token_trx_list[0]['hash']}")
+    elif len(entry_token_trx_list) > 2:
+        modify_sheet("100% BOT: Same token sent multiple times to different addresses")
+
+
+# for i in range(entries_number):
+for i in range(10, entries_number):
     if required_token_address is not None:
 
         url = f"{base_ether_url}{required_token_address}?a={address_list[i]}"
@@ -118,7 +146,7 @@ for i in range(entries_number):
         # Select Balance element and string cast #
 
         nft_balance = str(balance_element[0].contents[-1])
-        print(type(nft_balance))
+        # print(type(nft_balance))
 
         # First Scenario: No token found (Check balance) ->
         # last 2 transactions in and out addresses same vault AND previous transactions include vault = human
@@ -127,7 +155,7 @@ for i in range(entries_number):
         # First number is on the second character #
 
         if nft_balance[1] == '0':
-            print("Scenario 1: Check if vault to wallet or bot")
+            print("Scenario 1: No Token: Check if vault to wallet or bot")
 
             token_trx = requests.get(f"{api_url_with_token_address}&address={address_list[i]}{base_api_url_finish}")
             # pprint.pp(token_trx.json())
@@ -143,20 +171,23 @@ for i in range(entries_number):
                         trx_hash = trx['hash']
                         Fetch_Trx_Type(trx_hash)
                         print(f"Transaction fetched is: {Fetch_Trx_Type(trx_hash)}")
-                        if Fetch_Trx_Type(trx_hash) == "sale" or Fetch_Trx_Type(trx_hash) == 'mint':
+                        if Fetch_Trx_Type(trx_hash) == "sale:" or Fetch_Trx_Type(trx_hash) == 'mint' or Fetch_Trx_Type(trx_hash) == 'bid':
                             modify_sheet("SAFE: Purchased or minted")
                         elif Fetch_Trx_Type(trx_hash) == 'transfer':
                             # Check for wash transfer from originating address #
-                            modify_sheet("Check origin address for wash transfer")
+                            # modify_sheet("Check origin address for wash transfer")
+                            wash_transfer_check(trx['from'], last_tokenID_used)
                         else:
-                            modify_sheet("DOUBLE CHECK")
-            elif Fetch_Trx_Type(last_token_hash) == "sale" or Fetch_Trx_Type(last_token_hash) == 'mint':
+                            modify_sheet("DOUBLE CHECK incoming trx")
+                            print(f"Hash={trx_hash} with type: {Fetch_Trx_Type(trx_hash)}")
+            elif Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(last_token_hash) == 'mint' or Fetch_Trx_Type(last_token_hash) == 'bid':
                 # Mark as safe #
                 modify_sheet("SAFE: Purchased or Minted")
             else:
-                modify_sheet("Double Check")
+                modify_sheet(f"Double Check trx type")
+                print(f"trx type of:{Fetch_Trx_Type(last_token_hash)} hash:{last_token_hash}")
         else:
-            print("Scenario 2: TOKEN FOUND\ncheck OUTGOING ADDRESS IS VAULT OR NOT")
+            print("Scenario 2: TOKEN FOUND -- check Origin ADDRESS IS VAULT OR NOT")
             token_trx = requests.get(f"{api_url_with_token_address}&address={address_list[i]}{base_api_url_finish}")
             # pprint.pp(token_trx.json())
             token_trx_data = token_trx.json()
@@ -164,9 +195,10 @@ for i in range(entries_number):
             # fetch last token action #
             last_tokenID_used = token_trx_data['result'][-1]['tokenID']
             last_token_hash = token_trx_data['result'][-1]['hash']
-            if Fetch_Trx_Type(last_token_hash) == "sale" or Fetch_Trx_Type(last_token_hash) == "mint":
+            if Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(last_token_hash) == "mint" or Fetch_Trx_Type(last_token_hash) == "bid":
                 modify_sheet("SAFE: Purchased or Minted")
             elif Fetch_Trx_Type(last_token_hash) == "transfer":
-                modify_sheet("May be Safe but Check for wash transfer")
+                # modify_sheet("May be Safe but Check for wash transfer")
+                wash_transfer_check(token_trx_data['result'][-1]['from'], last_tokenID_used)
             else:
-                modify_sheet("Double Check")
+                modify_sheet(f"Double Check transaction type:{Fetch_Trx_Type(last_token_hash)} for hash:{last_token_hash}")
