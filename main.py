@@ -4,6 +4,9 @@ import pandas
 import pprint
 from bs4 import BeautifulSoup
 
+whitelist_addresses = ['0xe3dad9fd32e8cc14f65a6e5da82aca4395f223c3',
+                       '0x22da8dd235b1aca9a3c1980c8a11bc24712f67c1']
+
 # Import Google Sheet #
 
 address_list = []
@@ -37,7 +40,7 @@ sheet = pandas.DataFrame(data[sheet_name])
 
 
 # Column names assignment #
-
+# print(list(data[sheet_name][0].keys()))
 first_column_key = list(data[sheet_name][0].keys())[0]
 second_column_key = list(data[sheet_name][0].keys())[1]
 third_column_key = list(data[sheet_name][0].keys())[2]
@@ -94,7 +97,8 @@ def modify_sheet(status_message: str):
     print(f"Status code: {modify.status_code}\nContent: {modify.content}\nText: {modify.text}")
 
 
-def wash_transfer_check(origin_address:str, last_tokenID:str):
+def wash_transfer_check(origin_address: str, last_tokenID: str):
+    # print(f"{api_url_with_token_address}&address={origin_address}{base_api_url_finish}")
     origin_address_trxs = requests.get(
         f"{api_url_with_token_address}&address={origin_address}{base_api_url_finish}").json()
     # check json data #
@@ -106,13 +110,16 @@ def wash_transfer_check(origin_address:str, last_tokenID:str):
     # Check entries logged #
     # pprint.pp(entry_token_trx_list)
     if len(entry_token_trx_list) == 2:
-        # print(entry_token_trx_list[0])
+        # pprint.pp(entry_token_trx_list[0])
         if Fetch_Trx_Type(entry_token_trx_list[0]['hash']) == "sale:" or Fetch_Trx_Type(
                 entry_token_trx_list[0]['hash']) == 'mint' or Fetch_Trx_Type(
-                entry_token_trx_list[0]['hash']) == 'bid':
+            entry_token_trx_list[0]['hash']) == 'bid':
             modify_sheet("SAFE: origin Purchased or Minted")
         elif Fetch_Trx_Type(entry_token_trx_list[0]['hash']) == "transfer":
-            modify_sheet("90% BOT: transferred more than twice -- Check further")
+            if entry_token_trx_list[0]['from'] in whitelist_addresses:
+                modify_sheet("Safe: Token transferred from team")
+            else:
+                modify_sheet("90% BOT: transferred more than twice -- Check further")
         else:
             modify_sheet("Double Check trx type")
             print(f"transaction type: {Fetch_Trx_Type(entry_token_trx_list[0]['hash'])} for "
@@ -122,7 +129,7 @@ def wash_transfer_check(origin_address:str, last_tokenID:str):
 
 
 # for i in range(entries_number):
-for i in range(10, entries_number):
+for i in range(11, 12):
     if required_token_address is not None:
 
         url = f"{base_ether_url}{required_token_address}?a={address_list[i]}"
@@ -167,11 +174,15 @@ for i in range(10, entries_number):
             if Fetch_Trx_Type(last_token_hash) == "transfer":
                 # Check incoming token trx
                 for trx in token_trx_data['result']:
-                    if trx['tokenID'] == last_tokenID_used and trx['to'] == token_trx_data['result'][-1]["from"]:
+                    if trx['tokenID'] == last_tokenID_used and token_trx_data[0][
+                        'from'] == '0x0000000000000000000000000000000000000000':
+                        modify_sheet("Safe: Minted and transferred")
+                    elif trx['tokenID'] == last_tokenID_used and trx['to'] == token_trx_data['result'][-1]["from"]:
                         trx_hash = trx['hash']
                         Fetch_Trx_Type(trx_hash)
                         print(f"Transaction fetched is: {Fetch_Trx_Type(trx_hash)}")
-                        if Fetch_Trx_Type(trx_hash) == "sale:" or Fetch_Trx_Type(trx_hash) == 'mint' or Fetch_Trx_Type(trx_hash) == 'bid':
+                        if Fetch_Trx_Type(trx_hash) == "sale:" or Fetch_Trx_Type(trx_hash) == 'mint' or Fetch_Trx_Type(
+                                trx_hash) == 'bid':
                             modify_sheet("SAFE: Purchased or minted")
                         elif Fetch_Trx_Type(trx_hash) == 'transfer':
                             # Check for wash transfer from originating address #
@@ -180,7 +191,9 @@ for i in range(10, entries_number):
                         else:
                             modify_sheet("DOUBLE CHECK incoming trx")
                             print(f"Hash={trx_hash} with type: {Fetch_Trx_Type(trx_hash)}")
-            elif Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(last_token_hash) == 'mint' or Fetch_Trx_Type(last_token_hash) == 'bid':
+
+            elif Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(
+                    last_token_hash) == 'mint' or Fetch_Trx_Type(last_token_hash) == 'bid':
                 # Mark as safe #
                 modify_sheet("SAFE: Purchased or Minted")
             else:
@@ -195,10 +208,15 @@ for i in range(10, entries_number):
             # fetch last token action #
             last_tokenID_used = token_trx_data['result'][-1]['tokenID']
             last_token_hash = token_trx_data['result'][-1]['hash']
-            if Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(last_token_hash) == "mint" or Fetch_Trx_Type(last_token_hash) == "bid":
+            if Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(
+                    last_token_hash) == "mint" or Fetch_Trx_Type(last_token_hash) == "bid":
                 modify_sheet("SAFE: Purchased or Minted")
             elif Fetch_Trx_Type(last_token_hash) == "transfer":
+                for trx in token_trx_data['result']:
+                    if trx['tokenID'] == last_tokenID_used and token_trx_data[0]['from'] == '0x0000000000000000000000000000000000000000':
+                        modify_sheet("Safe: Minted and transferred from vault")
                 # modify_sheet("May be Safe but Check for wash transfer")
                 wash_transfer_check(token_trx_data['result'][-1]['from'], last_tokenID_used)
             else:
-                modify_sheet(f"Double Check transaction type:{Fetch_Trx_Type(last_token_hash)} for hash:{last_token_hash}")
+                modify_sheet(
+                    f"Double Check transaction type:{Fetch_Trx_Type(last_token_hash)} for hash:{last_token_hash}")
