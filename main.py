@@ -3,7 +3,6 @@ import os
 import pandas
 import pprint
 from bs4 import BeautifulSoup
-from Function_testing import sheety_data
 
 whitelist_addresses = ['0xe3dad9fd32e8cc14f65a6e5da82aca4395f223c3',
                        '0x22da8dd235b1aca9a3c1980c8a11bc24712f67c1']
@@ -20,17 +19,16 @@ headers = {
     "Authorization": f"Bearer {sheety_key}"
 }
 
-# response = requests.get(doc_link, headers=headers)
-# data = response.json()
-data = sheety_data
+response = requests.get(doc_link, headers=headers)
+data = response.json()
 # print(data)
 print("Google sheet imported")
+
 # Troubleshoot data #
 # pprint.pp(data)
 
 # Fetch Sheet Name #
 
-# print(f"data key:{data.keys()} of type: {type(data.keys())}")
 sheet_name = list(data.keys())[0]
 
 # Fetch Number of Entries #
@@ -44,7 +42,6 @@ sheet = pandas.DataFrame(data[sheet_name])
 
 
 # Column names assignment #
-# print(list(data[sheet_name][0].keys()))
 first_column_key = list(data[sheet_name][0].keys())[0]
 second_column_key = list(data[sheet_name][0].keys())[1]
 third_column_key = list(data[sheet_name][0].keys())[2]
@@ -53,12 +50,10 @@ third_column_key = list(data[sheet_name][0].keys())[2]
 
 for column in sheet:
     # Check each column
-    # pprint.pp(sheet[column].values)
     for item in sheet[column].values:
         try:
             if len(item) == 42 and item.startswith("0x"):
                 # Check item type
-                # print(type(item))
                 address_list.append(item)
         except TypeError:
             pass
@@ -82,6 +77,7 @@ required_token_address = input("Enter the NFT token address: ")
 api_url_with_token_address = f"{base_api_url_start}{required_token_address}"
 print("Base API call created")
 
+
 def Fetch_Trx_Type(hash: str):
     trx_doc = requests.get(f"{base_trx_url}{hash}", headers=http_header)
     trx_soup = BeautifulSoup(trx_doc.text, 'html.parser')
@@ -94,7 +90,6 @@ def Fetch_Trx_Type(hash: str):
 def modify_sheet(status_message: str, **tokens):
     print(f"Status message: {status_message}")
     print(f"Tokens dict: {tokens}")
-    # print(f"Tokens passed type is: {type(tokens)}")
     base_dictionary = {
         f"{first_column_key}": data[sheet_name][i][f"{first_column_key}"],
         f"{second_column_key}": data[sheet_name][i][f"{second_column_key}"]
@@ -123,9 +118,6 @@ def modify_sheet(status_message: str, **tokens):
 
 def wash_transfer_check(origin_address: str, last_tokenID: str, *existing_token):
     print("Wash transfer Function initiated")
-    # print(f"Existing tokens are: {existing_token} of type: {type(existing_token)}")
-    # print(f"Type of existing token is: {type(existing_token)}")
-    # print(f"{api_url_with_token_address}&address={origin_address}{base_api_url_finish}")
     origin_address_trxs = requests.get(
         f"{api_url_with_token_address}&address={origin_address}{base_api_url_finish}").json()
     # check json data #
@@ -151,7 +143,6 @@ def wash_transfer_check(origin_address: str, last_tokenID: str, *existing_token)
             else:
                 print("Purchase section: 3rd option??")
         elif Fetch_Trx_Type(entry_token_trx_list[0]['hash']) == "transfer":
-            # print(Fetch_Trx_Type(entry_token_trx_list[0]['hash']) == "transfer")
             if existing_token == ():
                 print(f"Modifying Sheet with no existing token")
                 if entry_token_trx_list[0]['from'] in whitelist_addresses:
@@ -211,14 +202,11 @@ def existing_token_check(tokens_list: list):
             if t == tr['tokenID']:
                 trxs_list.append(tr)
         print(f"Transactions for token number {t} are: {trxs_list}")
-        # last_transaction_hash = trxs_list[-1]['hash']
-        # last_tokenID_used = trxs_list[-1]['tokenID']
         last_transaction_hash = trxs_list[-1]['hash']
         if Fetch_Trx_Type(last_transaction_hash) == "sale:" or Fetch_Trx_Type(
                 last_transaction_hash) == "mint" or Fetch_Trx_Type(last_transaction_hash) == "bid":
             token_message_dict[t] = "SAFE: Purchased or Minted"
             print(token_message_dict)
-            # modify_sheet("SAFE: Purchased or Minted")
         elif Fetch_Trx_Type(last_transaction_hash) == "transfer":
             # Check first couple of trx if mints #
             counters = 0
@@ -226,23 +214,16 @@ def existing_token_check(tokens_list: list):
                 if trx['from'] == '0x0000000000000000000000000000000000000000':
                     token_message_dict[t] = "Safe: Minted and transferred from vault"
                     print(token_message_dict)
-                    # modify_sheet("Safe: Minted and transferred from vault")
                 else:
                     counters += 1
             if counters == len(trxs_list):
                 print("No mint detected")
                 if type(wash_transfer_check(trxs_list[-1]['from'], t, t)) == str:
                     token_message_dict[list(data[sheet_name][0].keys())[2]] = wash_transfer_check(trxs_list[-1]['from'], t, t)
-                # print(f"Wash transfer for {t} has type:{type(wash_transfer_check(trxs_list[-1]['from'], t, t))}")
-                # print(trxs_list[-1]['from'])
-                # print(t)
-                # print(wash_transfer_check(trxs_list[-1]['from'], t, t))
 
         else:
             token_message_dict[t] = f"Double Check transaction type:{Fetch_Trx_Type(last_transaction_hash)} for hash:{last_transaction_hash}"
             print(token_message_dict)
-            # modify_sheet(
-            #     f"Double Check transaction type:{Fetch_Trx_Type(last_transaction_hash)} for hash:{last_transaction_hash}")
     pprint.pp(token_message_dict)
     modify_sheet("E", **token_message_dict)
 
@@ -256,6 +237,7 @@ for i in range(entries_number):
 
         token_soup = BeautifulSoup(token_doc.text, 'html.parser')
         print("Soup created")
+
         # troubleshoot token_soup (fetched html)
         # pprint.pp(token_soup)
 
