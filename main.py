@@ -290,15 +290,7 @@ for i in range(98, 100):
             last_tokenID_used = token_trx_data['result'][-1]['tokenID']
             last_token_hash = token_trx_data['result'][-1]['hash']
             total_addresses = []
-            # for address in token_trx_data['result']:
-            #     if Fetch_Trx_Type(address['hash']) == 'transfer':
-            #         if address['from'] not in total_addresses:
-            #             total_addresses.append(address['from'])
-            #         if address['to'] not in total_addresses:
-            #             total_addresses.append(address['to'])
-            # if len(total_addresses) == 2:
-            #     modify_sheet("Mostly Safe: In and out of Vault")
-            # elif len(total_addresses) >= 2:
+
             if Fetch_Trx_Type(last_token_hash) == "transfer":
                 print("Transfer detected: 0 Balance")
                 # Check incoming token trx
