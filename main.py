@@ -247,8 +247,7 @@ def existing_token_check(tokens_list: list):
     modify_sheet("E", **token_message_dict)
 
 
-# for i in range(entries_number):
-for i in range(98, 100):
+for i in range(entries_number):
     if required_token_address is not None:
 
         url = f"{base_ether_url}{required_token_address}?a={address_list[i]}"
