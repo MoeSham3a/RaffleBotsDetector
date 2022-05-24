@@ -16,7 +16,7 @@ Second Column: Twitter handles
 
 Third Column: Address Status
 
-![alt text](https://drive.google.com/file/d/18P8TQtFxHPfxJGnSM2SQdIw8v-iLXDO2/view?usp=sharing)
+https://drive.google.com/file/d/18P8TQtFxHPfxJGnSM2SQdIw8v-iLXDO2/view?usp=sharing
 
 The script can filter the document regardless of the column name. The order is important!!!
 
@@ -26,7 +26,7 @@ In order to filter the addresses, the script checks 2 things.
 
 if the address holds the required token which is identified by entering the contract address of said token when prompted to
 
-![alt text](https://drive.google.com/file/d/1_Yc1KAv0ggrPhzMkOECuHhj4Dn74y03W/view?usp=sharing)
+https://drive.google.com/file/d/1_Yc1KAv0ggrPhzMkOECuHhj4Dn74y03W/view?usp=sharing
 
 This is achieved by web scraping etherscan and fetching the token balance using Beautiful Soup
 
