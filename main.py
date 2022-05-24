@@ -7,6 +7,7 @@ from Function_testing import sheety_data
 
 whitelist_addresses = ['0xe3dad9fd32e8cc14f65a6e5da82aca4395f223c3',
                        '0x22da8dd235b1aca9a3c1980c8a11bc24712f67c1']
+print("Whitelist addresses created")
 
 # Import Google Sheet #
 
@@ -23,6 +24,7 @@ headers = {
 # data = response.json()
 data = sheety_data
 # print(data)
+print("Google sheet imported")
 # Troubleshoot data #
 # pprint.pp(data)
 
@@ -60,6 +62,7 @@ for column in sheet:
                 address_list.append(item)
         except TypeError:
             pass
+print("Addresses extracted")
 
 # Assign HTTP Header #
 
@@ -77,7 +80,7 @@ base_api_url_finish = f"&page=1&offset=100&startblock=14575110&endblock=27025780
 
 required_token_address = input("Enter the NFT token address: ")
 api_url_with_token_address = f"{base_api_url_start}{required_token_address}"
-
+print("Base API call created")
 
 def Fetch_Trx_Type(hash: str):
     trx_doc = requests.get(f"{base_trx_url}{hash}", headers=http_header)
@@ -91,12 +94,13 @@ def Fetch_Trx_Type(hash: str):
 def modify_sheet(status_message: str, **tokens):
     print(f"Status message: {status_message}")
     print(f"Tokens dict: {tokens}")
-    print(f"Tokens passed type is: {type(tokens)}")
+    # print(f"Tokens passed type is: {type(tokens)}")
     base_dictionary = {
         f"{first_column_key}": data[sheet_name][i][f"{first_column_key}"],
         f"{second_column_key}": data[sheet_name][i][f"{second_column_key}"]
     }
     if tokens == {}:
+        print("No tokens passed")
         base_dictionary[f"{third_column_key}"] = f"{status_message}"
         pprint.pp(f"New Dict: {base_dictionary}")
         modify = requests.put(
@@ -244,7 +248,7 @@ def existing_token_check(tokens_list: list):
 
 
 # for i in range(entries_number):
-for i in range(90, 91):
+for i in range(98, 100):
     if required_token_address is not None:
 
         url = f"{base_ether_url}{required_token_address}?a={address_list[i]}"
@@ -252,7 +256,7 @@ for i in range(90, 91):
         token_doc = requests.get(url, headers=http_header)
 
         token_soup = BeautifulSoup(token_doc.text, 'html.parser')
-
+        print("Soup created")
         # troubleshoot token_soup (fetched html)
         # pprint.pp(token_soup)
 
@@ -269,7 +273,7 @@ for i in range(90, 91):
 
         nft_balance = str(balance_element[0].contents[-1])
         # print(type(nft_balance))
-
+        print(f"NFT Balance: {nft_balance[1]}")
         # First Scenario: No token found (Check balance) ->
         # last 2 transactions in and out addresses same vault AND previous transactions include vault = human
         #  Not == Bot
@@ -286,44 +290,44 @@ for i in range(90, 91):
             last_tokenID_used = token_trx_data['result'][-1]['tokenID']
             last_token_hash = token_trx_data['result'][-1]['hash']
             total_addresses = []
-            for address in token_trx_data['result']:
-                if Fetch_Trx_Type(address['hash']) == 'transfer':
-                    if address['from'] not in total_addresses:
-                        total_addresses.append(address['from'])
-                    if address['to'] not in total_addresses:
-                        total_addresses.append(address['to'])
-            if len(total_addresses) == 2:
-                modify_sheet("Mostly Safe: In and out of Vault")
-            elif len(total_addresses) >= 2:
-                if Fetch_Trx_Type(last_token_hash) == "transfer":
-                    print("Transfer detected: 0 Balance")
-                    # Check incoming token trx
-                    for trx in token_trx_data['result']:
-                        # pprint.pp(f"{trx}\n{last_tokenID_used}\n{token_trx_data['result'][0]}")
-                        if trx['tokenID'] == last_tokenID_used and token_trx_data['result'][0]['from'] == '0x0000000000000000000000000000000000000000':
-                            modify_sheet("Safe: Minted and transferred")
-                        elif trx['tokenID'] == last_tokenID_used and trx['to'] == token_trx_data['result'][-1]["from"]:
-                            trx_hash = trx['hash']
-                            Fetch_Trx_Type(trx_hash)
-                            print(f"Transaction fetched is: {Fetch_Trx_Type(trx_hash)}")
-                            if Fetch_Trx_Type(trx_hash) == "sale:" or Fetch_Trx_Type(trx_hash) == 'mint' or Fetch_Trx_Type(
-                                    trx_hash) == 'bid':
-                                modify_sheet("SAFE: Purchased or minted")
-                            elif Fetch_Trx_Type(trx_hash) == 'transfer':
-                                # Check for wash transfer from originating address #
-                                # modify_sheet("Check origin address for wash transfer")
-                                wash_transfer_check(trx['from'], last_tokenID_used)
-                            else:
-                                modify_sheet("DOUBLE CHECK incoming trx")
-                                print(f"Hash={trx_hash} with type: {Fetch_Trx_Type(trx_hash)}")
+            # for address in token_trx_data['result']:
+            #     if Fetch_Trx_Type(address['hash']) == 'transfer':
+            #         if address['from'] not in total_addresses:
+            #             total_addresses.append(address['from'])
+            #         if address['to'] not in total_addresses:
+            #             total_addresses.append(address['to'])
+            # if len(total_addresses) == 2:
+            #     modify_sheet("Mostly Safe: In and out of Vault")
+            # elif len(total_addresses) >= 2:
+            if Fetch_Trx_Type(last_token_hash) == "transfer":
+                print("Transfer detected: 0 Balance")
+                # Check incoming token trx
+                for trx in token_trx_data['result']:
+                    # pprint.pp(f"{trx}\n{last_tokenID_used}\n{token_trx_data['result'][0]}")
+                    if trx['tokenID'] == last_tokenID_used and token_trx_data['result'][0]['from'] == '0x0000000000000000000000000000000000000000':
+                        modify_sheet("Safe: Minted and transferred")
+                    elif trx['tokenID'] == last_tokenID_used and trx['to'] == token_trx_data['result'][-1]["from"]:
+                        trx_hash = trx['hash']
+                        Fetch_Trx_Type(trx_hash)
+                        print(f"Transaction fetched is: {Fetch_Trx_Type(trx_hash)}")
+                        if Fetch_Trx_Type(trx_hash) == "sale:" or Fetch_Trx_Type(trx_hash) == 'mint' or Fetch_Trx_Type(
+                                trx_hash) == 'bid':
+                            modify_sheet("SAFE: Purchased or minted")
+                        elif Fetch_Trx_Type(trx_hash) == 'transfer':
+                            # Check for wash transfer from originating address #
+                            # modify_sheet("Check origin address for wash transfer")
+                            wash_transfer_check(trx['from'], last_tokenID_used)
+                        else:
+                            modify_sheet("DOUBLE CHECK incoming trx")
+                            print(f"Hash={trx_hash} with type: {Fetch_Trx_Type(trx_hash)}")
 
-                elif Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(
-                        last_token_hash) == 'mint' or Fetch_Trx_Type(last_token_hash) == 'bid':
-                    # Mark as safe #
-                    modify_sheet("SAFE: Purchased or Minted")
-                else:
-                    modify_sheet(f"Double Check trx type")
-                    print(f"trx type of:{Fetch_Trx_Type(last_token_hash)} hash:{last_token_hash}")
+            elif Fetch_Trx_Type(last_token_hash) == "sale:" or Fetch_Trx_Type(
+                    last_token_hash) == 'mint' or Fetch_Trx_Type(last_token_hash) == 'bid':
+                # Mark as safe #
+                modify_sheet("SAFE: Purchased or Minted")
+            else:
+                modify_sheet(f"Double Check trx type")
+                print(f"trx type of:{Fetch_Trx_Type(last_token_hash)} hash:{last_token_hash}")
         else:
             print("Scenario 2: TOKEN FOUND -- check Origin ADDRESS IS VAULT OR NOT")
             token_trx = requests.get(f"{api_url_with_token_address}&address={address_list[i]}{base_api_url_finish}")
